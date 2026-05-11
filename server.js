@@ -5,29 +5,39 @@ const app = express()
 
 const TOKEN = process.env.BOT_TOKEN
 
+const ADMIN_ID = "8706308967"
+
 const bot = new TelegramBot(TOKEN, { polling: true })
 
 let users = []
-let messages = []
+let logs = []
+let orders = []
 
 function addUser(user) {
+
 if (!users.find(u => u.id === user.id)) {
+
 users.push({
 id: user.id,
-username: user.username || "no_username"
+username: user.username || "no_username",
+status: "ONLINE",
+plan: "FREE"
 })
+
 }
+
 }
 
 function addLog(username, text) {
 
-messages.unshift({
+logs.unshift({
 username: username || "no_username",
-text: text
+text: text,
+time: new Date().toLocaleTimeString()
 })
 
-if (messages.length > 20) {
-messages.pop()
+if (logs.length > 20) {
+logs.pop()
 }
 
 }
@@ -36,35 +46,29 @@ bot.onText(/\/start/, (msg) => {
 
 addUser(msg.from)
 
-addLog(msg.from.username, "/start")
+addLog(msg.from.username, "зашел в бота")
 
 bot.sendMessage(msg.chat.id,
 
-`👋 Добро пожаловать в VPN NOOL
+`👋 Добро пожаловать в VPN NOOL PREMIUM
 
-📱 Инструкция подключения VPN:
+🚀 Быстрый и стабильный VPN
 
-1️⃣ Скачайте приложение Happ
-Доступно на iPhone и Android
+📱 Инструкция:
 
-2️⃣ После покупки ключа откройте Happ
+1️⃣ Скачайте Happ
+2️⃣ Получите VPN ключ
+3️⃣ Откройте Happ
+4️⃣ Нажмите "Выбрать из буфера"
+5️⃣ Подключитесь к серверу
 
-3️⃣ Внизу слева нажмите:
-📋 "Выбрать из буфера"
-
-4️⃣ Вставьте VPN ключ
-
-5️⃣ Выберите сервер
-
-⚡ Самые быстрые:
+⚡ Лучшие сервера:
 🇩🇪 Germany
-🇳🇱 Netherlands
-
-🔒 Хорошего пользования VPN NOOL`,
+🇳🇱 Netherlands`,
 {
 reply_markup: {
 keyboard: [
-["💳 Купить подписку"],
+["💳 Купить VPN"],
 ["🛠 Поддержка"]
 ],
 resize_keyboard: true
@@ -79,17 +83,23 @@ if (!msg.text) return
 
 addUser(msg.from)
 
-if (msg.text === "💳 Купить подписку") {
+if (msg.text === "💳 Купить VPN") {
 
-addLog(msg.from.username, "открыл подписки")
+addLog(msg.from.username, "открыл тарифы")
 
 bot.sendMessage(msg.chat.id,
 
-`💳 Выберите подписку VPN NOOL`,
+`💎 Тарифы VPN NOOL PREMIUM
+
+📅 1 Месяц — 399₽
+📅 3 Месяца — 899₽
+📅 12 Месяцев — 2999₽`,
 {
 reply_markup: {
 keyboard: [
-["📅 1 Месяц — 300₽"],
+["📅 1 Месяц"],
+["📅 3 Месяца"],
+["📅 12 Месяцев"],
 ["⬅ Назад"]
 ],
 resize_keyboard: true
@@ -98,23 +108,43 @@ resize_keyboard: true
 
 }
 
-if (msg.text === "📅 1 Месяц — 300₽") {
+if (
+msg.text === "📅 1 Месяц" ||
+msg.text === "📅 3 Месяца" ||
+msg.text === "📅 12 Месяцев"
+) {
 
-addLog(msg.from.username, "хочет купить VPN")
+orders.unshift({
+id: msg.from.id,
+username: msg.from.username || "no_username",
+plan: msg.text
+})
+
+addLog(msg.from.username, "создал заявку")
 
 bot.sendMessage(msg.chat.id,
 
-`⚠ Бот временно не принимает оплату
+`✅ Заявка создана
 
-🔑 Для покупки VPN ключа:
-напишите владельцу
-
-👑 Владелец:
+👑 Для оплаты напишите:
 @SIKI_OFFICIAL
 
-📱 1 устройство
-📅 30 дней доступа
-⚡ Высокая скорость VPN`
+🆔 Ваш ID:
+${msg.from.id}
+
+⚡ После оплаты вам выдадут VPN ключ`
+)
+
+bot.sendMessage(ADMIN_ID,
+
+`🚨 НОВАЯ ЗАЯВКА
+
+👤 @${msg.from.username}
+
+🆔 ID: ${msg.from.id}
+
+💎 Тариф:
+${msg.text}`
 )
 
 }
@@ -125,9 +155,9 @@ addLog(msg.from.username, "открыл поддержку")
 
 bot.sendMessage(msg.chat.id,
 
-`🛠 Техническая поддержка
+`🛠 Поддержка VPN NOOL
 
-По всем вопросам:
+👑 Владелец:
 @SIKI_OFFICIAL`
 )
 
@@ -135,15 +165,13 @@ bot.sendMessage(msg.chat.id,
 
 if (msg.text === "⬅ Назад") {
 
-addLog(msg.from.username, "вернулся назад")
-
 bot.sendMessage(msg.chat.id,
 
 `🏠 Главное меню`,
 {
 reply_markup: {
 keyboard: [
-["💳 Купить подписку"],
+["💳 Купить VPN"],
 ["🛠 Поддержка"]
 ],
 resize_keyboard: true
@@ -154,9 +182,7 @@ resize_keyboard: true
 
 })
 
-app.get('/', (req,res) => {
-
-const onlineUsers = users.slice(-5).reverse()
+app.get("/", (req,res) => {
 
 res.send(`
 
@@ -164,10 +190,12 @@ res.send(`
 <html lang="ru">
 
 <head>
+
 <meta charset="UTF-8">
-<title>VPN NOOL ADMIN</title>
 
 <meta http-equiv="refresh" content="2">
+
+<title>VPN NOOL PREMIUM</title>
 
 <style>
 
@@ -198,8 +226,8 @@ padding:25px;
 .logo{
 font-size:32px;
 font-weight:900;
-color:#a855f7;
-text-shadow:0 0 20px #a855f7;
+color:#00ffe1;
+text-shadow:0 0 20px #00ffe1;
 margin-bottom:40px;
 }
 
@@ -213,12 +241,6 @@ background:#151526;
 color:white;
 font-size:16px;
 cursor:pointer;
-transition:.3s;
-}
-
-.menu button:hover{
-background:#7e22ce;
-transform:scale(1.03);
 }
 
 .main{
@@ -229,14 +251,12 @@ padding:30px;
 .topbar{
 display:flex;
 justify-content:space-between;
-align-items:center;
 margin-bottom:30px;
 }
 
 .status{
 color:#00ff88;
 font-weight:bold;
-font-size:18px;
 }
 
 .grid{
@@ -249,26 +269,14 @@ gap:20px;
 background:#111122;
 padding:25px;
 border-radius:25px;
-border:1px solid #7e22ce;
-box-shadow:0 0 25px rgba(168,85,247,.2);
-transition:.3s;
-}
-
-.card:hover{
-transform:translateY(-5px);
-box-shadow:0 0 35px rgba(168,85,247,.5);
-}
-
-.card h2{
-font-size:18px;
-color:#aaa;
-margin-bottom:15px;
+border:1px solid #00ffe1;
 }
 
 .big{
 font-size:42px;
 font-weight:900;
-color:#c084fc;
+color:#00ffe1;
+margin-top:10px;
 }
 
 .logs{
@@ -276,20 +284,16 @@ margin-top:30px;
 background:#111122;
 padding:25px;
 border-radius:25px;
-border:1px solid #7e22ce;
-}
-
-.logs h1{
-margin-bottom:20px;
+border:1px solid #00ffe1;
 }
 
 .log{
-padding:15px;
+padding:12px;
 border-bottom:1px solid #222;
 }
 
 .user{
-color:#c084fc;
+color:#00ffe1;
 font-weight:bold;
 }
 
@@ -298,7 +302,7 @@ margin-top:30px;
 background:#111122;
 padding:25px;
 border-radius:25px;
-border:1px solid #7e22ce;
+border:1px solid #00ffe1;
 }
 
 table{
@@ -313,7 +317,7 @@ border-bottom:1px solid #222;
 }
 
 th{
-color:#a855f7;
+color:#00ffe1;
 }
 
 .online{
@@ -321,24 +325,11 @@ color:#00ff88;
 font-weight:bold;
 }
 
-.glow{
-position:fixed;
-width:500px;
-height:500px;
-background:#7e22ce;
-filter:blur(200px);
-opacity:.2;
-top:-100px;
-right:-100px;
-z-index:-1;
-}
-
 </style>
+
 </head>
 
 <body>
-
-<div class="glow"></div>
 
 <div class="sidebar">
 
@@ -349,22 +340,10 @@ VPN NOOL
 <div class="menu">
 
 <button>📊 Dashboard</button>
-
 <button>👥 Пользователи</button>
-
-<button>💬 Сообщения</button>
-
-<button>🌍 VPN Servers</button>
-
 <button>💳 Подписки</button>
-
-<button>📨 Рассылка</button>
-
-<button>🚫 Бан система</button>
-
+<button>📨 Заявки</button>
 <button>⚙ Настройки</button>
-
-<button>🛡 Security</button>
 
 </div>
 
@@ -390,38 +369,40 @@ VPN NOOL
 </div>
 
 <div class="card">
-<h2>Онлайн сейчас</h2>
-<div class="big">${onlineUsers.length}</div>
+<h2>Заявки</h2>
+<div class="big">${orders.length}</div>
 </div>
 
 <div class="card">
-<h2>VPN Nodes</h2>
-<div class="big">12</div>
+<h2>Онлайн</h2>
+<div class="big">${users.length}</div>
 </div>
 
 <div class="card">
 <h2>Доход</h2>
-<div class="big">${users.length * 300} ₽</div>
+<div class="big">${orders.length * 399} ₽</div>
 </div>
 
 </div>
 
 <div class="logs">
 
-<h1>LIVE ACTIVITY</h1>
+<h1 style="margin-bottom:20px;">LIVE ACTIVITY</h1>
 
-${messages.map(m => `
+${logs.map(log => `
 <div class="log">
-<span class="user">@${m.username}</span>
-: ${m.text}
+<span class="user">@${log.username}</span>
+— ${log.text}
 </div>
-`).join('')}
+`).join("")}
 
 </div>
 
 <div class="table">
 
-<h1 style="margin-bottom:20px;">ПОСЛЕДНИЕ ПОЛЬЗОВАТЕЛИ</h1>
+<h1 style="margin-bottom:20px;">
+ПОСЛЕДНИЕ ПОЛЬЗОВАТЕЛИ
+</h1>
 
 <table>
 
@@ -432,14 +413,14 @@ ${messages.map(m => `
 <th>PLAN</th>
 </tr>
 
-${users.map(u => `
+${users.map(user => `
 <tr>
-<td>${u.id}</td>
-<td>@${u.username}</td>
-<td class="online">ONLINE</td>
-<td>PREMIUM</td>
+<td>${user.id}</td>
+<td>@${user.username}</td>
+<td class="online">${user.status}</td>
+<td>${user.plan}</td>
 </tr>
-`).join('')}
+`).join("")}
 
 </table>
 
@@ -455,5 +436,5 @@ ${users.map(u => `
 })
 
 app.listen(3000, () => {
-console.log("SERVER STARTED")
+console.log("VPN NOOL PREMIUM STARTED")
 })
